@@ -3,15 +3,26 @@
 ##                   preparation                     ##
 ##===================================================##
 #######################################################
+
+
 #===================================================#
 #             remove previous objects               #
 #===================================================#
-rm(list=ls())
+
+
+rm(list = ls())
+
+
 #===================================================#
 #               install package                     #
 #===================================================#
-list.of.packages <- c("caroline", "pscl", "VGAM", "dplyr", "statmod", "ggplot2", "caret", "partykit", "gridExtra", "sandwich")
+
+
+## List of packages should be install.
+list.of.packages <- c("caret", "caroline", "cowplot", "dplyr", "dplyr", "ggplot2", "gridExtra", "microbenchmark", "partykit", "pscl", "pscl", "sandwich", "statmod", "VGAM", "xtable")
+## The package is already installed.
 installed_pkgs = installed.packages()[, "Package"]
+## Check for missing packages.
 new.packages <- list.of.packages[!(list.of.packages %in% installed_pkgs)]
 if (length(new.packages)) install.packages(new.packages)
 if (!"countreg" %in% installed_pkgs) install.packages("countreg", repos = "http://R-Forge.R-project.org")
@@ -20,14 +31,9 @@ if (!"countreg" %in% installed_pkgs) install.packages("countreg", repos = "http:
 #===================================================#
 #                  load package                     #
 #===================================================#
-#library(xtable)   ; library(cowplot)   ; library(microbenchmark)
-#library(caroline) ; library(pscl)      ; library(VGAM)
-#library(ggplot2)  ; library(gridExtra)
-#library(caret)
-pack = c("caroline", "pscl", "VGAM", "dplyr", "statmod", "ggplot2", "caret", "partykit", "gridExtra", "sandwich")
-lapply(pack, require, character.only = TRUE)
-library(dplyr)
-library(partykit)
+
+
+lapply(list.of.packages, require, character.only = TRUE)
 library(countreg)
 
 
@@ -41,20 +47,20 @@ library(countreg)
 
 backeli <- function(object, data, dist = c("poisson", "negbin", "geometric"), alpha = 0.05, trace = FALSE) {
   FUN = if (class(object) != "zeroinfl") {
+    ## The hurdle model considers all zeros to be “structural zeros”.
     hurdle
   } else {
     zeroinfl
   }
   dist <- match.arg(dist)
   fit <- object
-  cats = sapply(fit$model[, -1], function(x) if (is.factor(x))
+  cats = sapply(fit$model[, -1], function(x) if (is.factor(x)) 
     length(levels(x)) - 1 else 1)
   rhs1 <- attr(fit$terms$count, "term.labels")
   rhs2 <- attr(fit$terms$zero, "term.labels")
-  nj <- length(rhs1) * length(rhs2)
   rhs1 = rep(names(cats[rhs1]), cats[rhs1])
   rhs2 = rep(names(cats[rhs2]), cats[rhs2])
-
+  
   nj <- length(rhs1) * length(rhs2)
   j <- 1
   if (trace) {
@@ -64,90 +70,95 @@ backeli <- function(object, data, dist = c("poisson", "negbin", "geometric"), al
   RET <- matrix(NA, nrow = nj, ncol = 3)
   colnames(RET) <- c("loglik", "BIC", "AIC")
   while (T) {
-    if (trace)
+    if (trace) 
       cat("\nstep", j, "\n")
     coef <- summary(fit)$coef
-
-    ### excluding intercept
-
+    
+    ## excluding intercept
     d <- dim(coef$count)[1]
-    if (dist != "negbin")
-      count.pval <- coef$count[-1, 4]  ### find maximum p-value from count
-    else count.pval <- coef$count[-c(1, d), 4]  ### find maximum p-value from count model
-
-    if (trace)
+    ## Find maximum p-value from count model.
+    if (dist != "negbin") 
+      count.pval <- coef$count[-1, 4]  
+    else count.pval <- coef$count[-c(1, d), 4]
+    
+    if (trace) 
       cat("\ncount", count.pval, "\n")
-
-    zero.pval <- coef$zero[-1, 4]  ### find maximum p-value from count model
-
-    if (trace)
+    
+    zero.pval <- coef$zero[-1, 4]  
+    
+    if (trace) 
       cat("\nzero", zero.pval, "\n")
-
+    
     nc <- length(count.pval)
     nz <- length(zero.pval)
+    ## Which variable has maximum p-value from count model.
     if (dist != "negbin")
-      count.order <- order(coef$count[-1, 4], decreasing = TRUE)  ### which variable has maximum p-value from count model
-    else count.order <- order(coef$count[-c(1, d), 4], decreasing = TRUE)  ### which variable has maximum p-value from count model
-    zero.order <- order(coef$zero[-1, 4], decreasing = TRUE)  ### which variable has maximum p-value from count model
-
-    if (trace)
+      count.order <- order(coef$count[-1, 4], decreasing = TRUE)
+    else count.order <- order(coef$count[-c(1, d), 4], decreasing = TRUE)
+    
+    zero.order <- order(coef$zero[-1, 4], decreasing = TRUE)
+    
+    if (trace) 
       cat("\ncount", count.order, "\n")
-    if (trace)
+    
+    if (trace) 
       cat("\nzero", zero.order, "\n")
-
+    
     cats = sapply(fit$model[, -1], function(x) if (is.factor(x))
       length(levels(x)) - 1 else 1)
     rhs1 <- attr(fit$terms$count, "term.labels")
     rhs2 <- attr(fit$terms$zero, "term.labels")
     rhs1 = rep(names(cats[rhs1]), cats[rhs1])
     rhs2 = rep(names(cats[rhs2]), cats[rhs2])
-
-    if (trace)
+    
+    if (trace) 
       cat("\nr1", rhs1, "\n")
-    if (trace)
+    
+    if (trace) 
       cat("\nr2", rhs2, "\n")
-
+    
     kc <- 1
     kz <- 1
     count.max <- count.pval[count.order[kc]]
     zero.max <- zero.pval[zero.order[kz]]
-    if (is.na(count.max) && is.na(zero.max))
-      break else if (is.na(zero.max))
-        zero.max <- 0 else if (is.na(count.max))
+    if (is.na(count.max) && is.na(zero.max)) 
+      break else if (is.na(zero.max)) 
+        zero.max <- 0 else if (is.na(count.max)) 
           count.max <- 0
-    if (count.max > zero.max)
+    if (count.max > zero.max) 
       if (count.max > alpha) {
         newid <- count.order[kc]
-        if (dist != "negbin")
+        if (dist != "negbin") 
           dropvar <- rownames(coef$count)[-1][newid] else dropvar <- rownames(coef$count)[-c(1, d)][newid]
-          if (trace)
+          if (trace) 
             cat("drop variable in count component: ", rhs1[newid], "\n")
           rhs1 <- rhs1[rhs1 %out% rhs1[newid]]
-          # kc <- kc + 1
+          ## kc <- kc + 1
       } else break else if (zero.max > alpha) {
         newid <- zero.order[kc]
         dropvar <- rownames(coef$zero)[-1][newid]
-        if (trace)
+        if (trace) 
           cat("drop variable in zero component: ", rhs2[newid], "\n")
         rhs2 <- rhs2[rhs2 %out% rhs2[newid]]
       } else break
     rhs1 = unique(rhs1)
     rhs2 = unique(rhs2)
-    if (length(rhs1) == 0)
+    if (length(rhs1) == 0) 
       rhs1tmp <- 1 else {
         rhs1tmp <- rhs1[1]
-        if (length(rhs1) > 1)
+        if (length(rhs1) > 1) 
           for (i in 2:length(rhs1)) rhs1tmp <- paste(rhs1tmp, "+", rhs1[i])
       }
-    if (length(rhs2) == 0)
+    if (length(rhs2) == 0) 
       rhs2tmp <- 1 else {
         rhs2tmp <- rhs2[1]
-        if (length(rhs2) > 1)
+        if (length(rhs2) > 1) 
           for (i in 2:length(rhs2)) rhs2tmp <- paste(rhs2tmp, "+", rhs2[i])
       }
-    res <- deparse(terms(fit$terms$count)[[2]])  ### response variable
+    ## response variable
+    res <- deparse(terms(fit$terms$count)[[2]])
     out <- paste(res, "~", rhs1tmp, "|", rhs2tmp)
-    # set the environment of the formula (i.e. where should R look for variables when data aren't specified?)
+    ## Set the environment of the formula (i.e. where should R look for variables when data aren't specified?).
     environment(out) <- parent.frame()
     ofit = fit
     fit <- try(FUN(eval(parse(text = out)), data = data, dist = dist))
@@ -166,20 +177,23 @@ backeli <- function(object, data, dist = c("poisson", "negbin", "geometric"), al
     RET[j, 3] <- AIC(fit)
     j <- j + 1
   }
-  if (trace)
+  if (trace) 
     print(RET[complete.cases(RET), ])  #}
   return(fit)
 }
 
+
 #===================================================#
-#                 fit zero-inflated                 #
+#                fit zero-inflated                  #
 #===================================================#
+
+
 fitzi = function(method, using_data, var_role, depth = 2) {
   class(method) = method
   UseMethod("fitzi", method)
 }
 
-# constant #
+## constant
 fitzi.constant = function(method, using_data, var_role, depth = 2) {
   if (!is.null(var_role$OFF)) {
     var_role$OFF = var_role$OFF[as.integer(rownames(using_data))]
@@ -197,7 +211,7 @@ fitzi.constant = function(method, using_data, var_role, depth = 2) {
   }
 }
 
-# best simple linear #
+## best simple linear
 fitzi.simple = function(method, using_data, var_role, depth = 2) {
   if (is.null(var_role$BEST) | !length(var_role$BEST)) {
     using_FITZ = var_role$FITZ
@@ -221,7 +235,7 @@ fitzi.simple = function(method, using_data, var_role, depth = 2) {
     temp$loglik = logLik(temp)
     temp
   } else {
-
+    
     # formulas=as.formula(paste('Y ~ ', paste(using_FITL,collapse='+'),'|',paste(using_FITZ,collapse='+')))
     formulas = sapply(using_FITZ, function(x) as.formula(paste("Y ~ ", paste(using_FITL, collapse = "+"), "|", paste(x, collapse = "+"))))
     formulas = lapply(formulas, function(y) Filter(Negate(function(x) is.null(unlist(x))), y))
@@ -237,7 +251,7 @@ fitzi.simple = function(method, using_data, var_role, depth = 2) {
           NULL
         })
       })
-      maxll = do.call(c, lapply(models, function(x) if (!is.null(x))
+      maxll = do.call(c, lapply(models, function(x) if (!is.null(x)) 
         logLik(x) else -Inf))
     } else {
       models = lapply(formulas, function(x) {
@@ -255,7 +269,7 @@ fitzi.simple = function(method, using_data, var_role, depth = 2) {
   }
 }
 
-# multiple linear #
+## multiple linear
 fitzi.multiple = function(method, using_data, var_role, depth = 2) {
   using_FITL = var_role$FITL
   if (!length(using_FITL)) {
@@ -290,7 +304,7 @@ fitnb = function(method, using_data, var_role, depth = 2) {
   UseMethod("fitnb", method)
 }
 
-# constant #
+## constant
 fitnb.constant = function(method, using_data, var_role, depth = 2) {
   if (!is.null(var_role$OFF)) {
     var_role$OFF = var_role$OFF[as.integer(rownames(using_data))]
@@ -316,7 +330,7 @@ fitnb.constant = function(method, using_data, var_role, depth = 2) {
   }
 }
 
-# best simple linear #
+## best simple linear
 fitnb.simple = function(method, using_data, var_role, depth = 2) {
   if (is.null(var_role$BEST) | !length(var_role$BEST)) {
     using_FITZ = var_role$FITZ
@@ -362,7 +376,7 @@ fitnb.simple = function(method, using_data, var_role, depth = 2) {
           NULL
         })
       })
-      maxll = do.call(c, lapply(models, function(x) if (!is.null(x))
+      maxll = do.call(c, lapply(models, function(x) if (!is.null(x)) 
         logLik(x) else -Inf))
     } else {
       models = lapply(formulas, function(x) {
@@ -382,7 +396,7 @@ fitnb.simple = function(method, using_data, var_role, depth = 2) {
 
 
 
-# multiple linear #
+## multiple linear
 fitnb.multiple = function(method, using_data, var_role, depth = 2) {
   using_FITL = var_role$FITL
   if (!length(using_FITL)) {
@@ -489,19 +503,19 @@ fitnb.back = function(method, using_data, var_role, depth = 2) {
 }
 
 
+#===================================================#
+#             calculate score residual              #
+#===================================================#
 
-#===================================================#
-#          calculate    score residual              #
-#===================================================#
+
 altered_lambda = function(x) {
   x/(1 - exp(-x))
 }
 
 
-# Revised qscore
-
+## revised qscore
 qscore = function(method, using_data, var_role, depth, model) {
-  # fitm=switch(var_role$cdist,negbin=fitnb,poisson=fitzi)
+  ## fitm = switch(var_role$cdist, negbin = fitnb, poisson = fitzi)
   part_score = var_role$part_score
   if (method != "constant") {
     allvars = keep_var(using_data, unique(c(var_role$FITL, var_role$FITZ)))
@@ -524,21 +538,21 @@ qscore = function(method, using_data, var_role, depth, model) {
       modelset
     }
     score_mt = sandwich::estfun(modelt)
-    ## message("GG3:0")
+    ## message('check')
     modelhl[[i]] = modelt
     score_m[[i]] = score_mt
     score_m[[i]] = score_m[[i]][, grep("(Intercept)", dimnames(score_m[[i]])[[2]])]
     sv[[i]] = if (part_score %in% c("all", "count")) {
-      if (!is.null(dim(score_m[[i]])))
+      if (!is.null(dim(score_m[[i]]))) 
         score_m[[i]][, 1] else score_m[[i]]
     } else {
       NULL
     }
-    temp[[i]] = if (class(modelhl[[i]])[1] %in% c("glm", "negbin"))
+    temp[[i]] = if (class(modelhl[[i]])[1] %in% c("glm", "negbin")) 
       score_m[[i]] else switch(part_score, all = score_m[[i]], count = score_m[[i]][, 1], zero = score_m[[i]][, 2])
-    temp[[i]] = if (is.null(dim(temp[[i]])))
+    temp[[i]] = if (is.null(dim(temp[[i]]))) 
       as.integer(temp[[i]] > 0) else apply(ifelse(temp[[i]] > 0, "+", "-"), 1, paste0, collapse = "")
-    # if(var_role$trace)print(temp)
+    ## if(var_role$trace) print(temp)
     mean_l[[i]] = if (class(modelhl[[i]])[1] %in% c("glm", "negbin")) {
       exp(mean(VGAM::predict(modelhl[[i]])))
     } else if (class(modelhl[[i]])[1] == "zeroinfl") {
@@ -550,44 +564,48 @@ qscore = function(method, using_data, var_role, depth, model) {
   return(list(temp, mean_l, var_role, model = modelhl, sv))
 }
 
+
 #===================================================#
-#          construct   chi-square table             #
+#            construct chi-square table             #
 #===================================================#
+
 
 qctable = function(var_type, ...) {
   UseMethod("qctable", var_type)
 }
 
-# for numerical variable #
+## for numerical variable
 qctable.numeric = function(var_type, method, using_data, score_vector, var_role, var_name, score_diff, t_index) {
   temp = ftable(table(score_vector[t_index], cut(var_type[t_index], breaks = c(-Inf, unique(quantile(var_type[t_index], na.rm = T, probs = c(1/4, 2/4, 3/4))), Inf))))
   return(temp[, colSums(temp) != 0])
 }
 
-# for factor variable #
+## for factor variable
 qctable.factor = function(var_type, method, using_data, score_vector, var_role, var_name, score_diff, t_index) {
   temp = ftable(table(score_vector[t_index], var_type[t_index]))
   return(temp[, colSums(temp) != 0])
 }
 
-# for interaction #
+## for interaction
 qctable_interaction = function(vars_type, method, using_data, score_vector, var_role, score_diff, t_index) {
   all_interactions <- t(combn(var_role$CUT, 2))
   all_temps = lapply(1:nrow(all_interactions), function(i) {
     temps = as.list(using_data[all_interactions[i, ]])
     table_type = do.call(sum, (lapply(temps, is.factor)))
-    switch(table_type + 1, ftable(table(cut(temps[[1]][t_index], breaks = c(-Inf, unique(quantile(temps[[1]][t_index], na.rm = T)[3]), Inf)), cut(temps[[2]][t_index], breaks = c(-Inf, unique(quantile(temps[[2]][t_index], na.rm = T)[3]), Inf)), score_vector[t_index])), ftable(table(cut(temps[[which(lapply(temps, is.factor) == F)]][t_index], breaks = c(-Inf, unique(quantile(temps[[which(lapply(temps,
-                                                                                                                                                                                                                                                                                                                                                                                                           is.factor) == F)]][t_index], na.rm = T)[3]), Inf)), temps[[which(lapply(temps, is.factor) == T)]][t_index], score_vector[t_index])), ftable(table(temps[[1]][t_index], temps[[2]][t_index], score_vector[t_index])))
+    switch(table_type + 1, ftable(table(cut(temps[[1]][t_index], breaks = c(-Inf, unique(quantile(temps[[1]][t_index], na.rm = T)[3]), Inf)), cut(temps[[2]][t_index], breaks = c(-Inf, unique(quantile(temps[[2]][t_index], na.rm = T)[3]), Inf)), score_vector[t_index])), ftable(table(cut(temps[[which(lapply(temps, is.factor) == F)]][t_index], breaks = c(-Inf, unique(quantile(temps[[which(lapply(temps, is.factor) == F)]][t_index], na.rm = T)[3]), Inf)), temps[[which(lapply(temps, is.factor) == T)]][t_index], score_vector[t_index])), ftable(table(temps[[1]][t_index], temps[[2]][t_index], score_vector[t_index])))
   })
   all_temps = lapply(all_temps, function(i) {
     i[rowSums(i) != 0, ]
   })
   return(list(table_names = all_interactions, interaction_tables = all_temps))
 }
+
+
 #===================================================#
 #                variable selection                 #
 #===================================================#
-# Revised qvariable_select
+## revised qvariable_select
+
 
 qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alpha_in = 0.05, depth = 1, model = model, min_ssize = NULL) {
   gama = 1
@@ -601,8 +619,8 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
     model_now[[i]] = sv[[4]][[i]]
   }
   var_role = sv[[3]]
-  # print(table(score_vector)
-
+  ## print(table(score_vector)
+  
   if (length(var_role$CUT) == 0) {
     return(list(bs = NULL, cut_variable = NULL, terminal = T, why_no_split = "No variable to use", gama = gama, cts = NULL, model = model_now))
   }
@@ -612,7 +630,7 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
     }
   }
   t_index = !logical(length(using_data$Y))
-  # print(all(t_index==T))
+  ## print(all(t_index == T))
   table_single = list()
   for (j in 1:length(var_role$DEP)) {
     table_single[[j]] = lapply(names(vars_type), function(i) {
@@ -630,15 +648,17 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
       }
       Quasi = rep(1, length(CT3_Data))
       Zero_Cell = which(CT3_Data == 0)
-      if (length(Zero_Cell) != 0)
+      if (length(Zero_Cell) != 0) 
         Quasi[Zero_Cell] = 0
       dcc = dim(table_single[[j]][[i]])[1]
       dcc = ifelse(is.null(dcc), 1, dcc)
       ccc = length(CT3_Data)/(dcc * length(var_role$DEP))
       CT3 = array(CT3_Data, dim = c(dcc, ccc, length(var_role$DEP)), dimnames = list(c(as.character(1:dcc)), c(as.character(1:ccc)), c(as.character(1:length(var_role$DEP)))))
       QCT3 = array(Quasi, dim = c(dcc, ccc, length(var_role$DEP)), dimnames = list(c(as.character(1:dcc)), c(as.character(1:ccc)), c(as.character(1:length(var_role$DEP)))))
-      xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Full Model)
-      xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Reduced Model)
+      ## Loglinear Model(Full Model)
+      xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)  
+      ## Loglinear Model(Reduced Model)
+      xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)
       chiD[i] = xz.yz.model$pearson - xy.xz.yz.model$pearson
       dfD[i] = xz.yz.model$df - xy.xz.yz.model$df
     } else {
@@ -649,21 +669,23 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
       }
       Quasi = rep(1, length(CT3_Data))
       Zero_Cell = which(CT3_Data == 0)
-      if (length(Zero_Cell) != 0)
+      if (length(Zero_Cell) != 0) 
         Quasi[Zero_Cell] = 0
       dcn = dim(table_single[[j]][[i]])[1]
       dcn = ifelse(is.null(dcn), 1, dcn)
       cn = length(CT3_Data)/(dcn * length(var_role$DEP))
       CT3 = array(CT3_Data, dim = c(dcn, cn, length(var_role$DEP)), dimnames = list(c(as.character(1:dcn)), as.character(1:cn), c(as.character(1:length(var_role$DEP)))))
       QCT3 = array(Quasi, dim = c(dcn, cn, length(var_role$DEP)), dimnames = list(c(as.character(1:dcn)), as.character(1:cn), c(as.character(1:length(var_role$DEP)))))
-      xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Full Model)
-      xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Reduced Model)
+      ## Loglinear Model(Full Model)
+      xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)
+      ## Loglinear Model(Reduced Model)
+      xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)  
       chiD[i] = xz.yz.model$pearson - xy.xz.yz.model$pearson
       dfD[i] = xz.yz.model$df - xy.xz.yz.model$df
     }
   }
   stat_single = list()
-  # stat_single[[1]]=list(-0.4317894,2)
+  ## stat_single[[1]] = list(-0.4317894,2)
   for (i in 1:length(var_role$CUT)) {
     stat_single[[i]] = list(chiD[i], dfD[i])
   }
@@ -672,23 +694,23 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
   })
   names(stat_single) = names(vars_type)
   stat_single = stat_single[!unlist(lapply(stat_single, is.nan))]
-
+  
   if (!is.null(unlist(stat_single))) {
     best_single = names(stat_single[stat_single == max(unlist(stat_single))])
-    if (length(best_single) > 1)
+    if (length(best_single) > 1) 
       best_single = sample(best_single, 1, replace = F)
-
+    
     if (stat_single[[best_single]] > qchisq(1 - (alpha_main/length(stat_single)), 1)) {
       cut_variable = best_single
       terminal_node = F
       nosplit = NULL
     } else {
-
-      # if main effect not significant #
-
+      
+      ## if main effect not significant
+      
       if (method != "simple") {
         if (length(var_role$CUT) > 1) {
-          # interaction #
+          ## interaction
           table_couple = list()
           for (i in 1:length(var_role$DEP)) {
             table_couple[[i]] = qctable_interaction(vars_type, method, using_data, score_vector[[i]], var_role, score_diff, t_index)
@@ -703,15 +725,17 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
             }
             Quasi = rep(1, length(CT3_Data))
             Zero_Cell = which(CT3_Data == 0)
-            if (length(Zero_Cell) != 0)
+            if (length(Zero_Cell) != 0) 
               Quasi[Zero_Cell] = 0
             dcc = dim(table_couple[[j]]$interaction_tables[[i]])[1]
             dcc = ifelse(is.null(dcc), 1, dcc)
             ccc = length(CT3_Data)/(dcc * length(var_role$DEP))
             CT3 = array(CT3_Data, dim = c(dcc, ccc, length(var_role$DEP)), dimnames = list(c(as.character(1:dcc)), c(as.character(1:ccc)), c(as.character(1:length(var_role$DEP)))))
             QCT3 = array(Quasi, dim = c(dcc, ccc, length(var_role$DEP)), dimnames = list(c(as.character(1:dcc)), c(as.character(1:ccc)), c(as.character(1:length(var_role$DEP)))))
-            xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Full Model)
-            xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)  #Loglinear Model(Reduced Model)
+            ## Loglinear Model(Full Model)
+            xy.xz.yz.model = loglin(CT3, list(c(1, 2), c(1, 3), c(2, 3)), start = QCT3, print = F)
+            ## Loglinear Model(Reduced Model)
+            xz.yz.model = loglin(CT3, list(c(1, 3), c(2, 3)), start = QCT3, print = F)
             chiD[i] = xz.yz.model$pearson - xy.xz.yz.model$pearson
             dfD[i] = xz.yz.model$df - xy.xz.yz.model$df
           }
@@ -722,7 +746,7 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
           stat_couple = lapply(stat_couple, function(i) {
             suppressWarnings(max(0, ifelse(is.nan((7/9 + sqrt(as.numeric(i[2])) * ((as.numeric(i[1])/as.numeric(i[2]))^(1/3) - 1 + (2/(9 * as.numeric(i[2])))))^3), 0, (7/9 + sqrt(as.numeric(i[2])) * ((as.numeric(i[1])/as.numeric(i[2]))^(1/3) - 1 + (2/(9 * as.numeric(i[2])))))^3)))
           })
-
+          
           table_couple[[1]]$table_names = table_couple[[1]]$table_names[!unlist(lapply(stat_couple, is.nan)), ]
           stat_couple = stat_couple[!unlist(lapply(stat_couple, is.nan))]
           single_exist = apply(matrix(apply(matrix(table_couple[[1]]$table_names, ncol = 2), 2, function(x) match(x, names(stat_single), nomatch = 0) > 0), ncol = 2), 1, sum) > 1
@@ -735,13 +759,13 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
               bc_stat = stat_single[best_couple]
               bc_name = as.matrix(names(bc_stat[bc_stat == do.call(max, bc_stat)]))
               couples = apply(as.matrix(apply(best_couple, 2, function(x) match(x, bc_name, nomatch = 0) > 0)), 1, sum)
-              if (sum(couples) > 0)
+              if (sum(couples) > 0) 
                 best_couple = best_couple[(couples > 0), ]
-              if (length(best_couple) > 2)
+              if (length(best_couple) > 2) 
                 best_couple = best_couple[sample(1:(length(best_couple)/2), 1, replace = F), ]
             }
             best_csingle = names(which(max(unlist(stat_single[best_couple])) == unlist(stat_single[best_couple])))
-            if (length(best_csingle) > 1)
+            if (length(best_csingle) > 1) 
               best_csingle = sample(best_csingle, 1, replace = F)
             MAX = !is.na(colSums(apply(matrix(table_couple[[1]]$table_names, ncol = 2), 1, function(x) match(best_couple, x))))
             if (stat_couple[MAX][[1]] > qchisq(1 - (alpha_in/length(stat_couple)), 1)) {
@@ -780,14 +804,16 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
   if (depth == 1 && method == "multiple") {
     return(list(bs = best_single, cut_variable = cut_variable, terminal = terminal_node, why_no_split = nosplit, gama = gama, cts = NULL, model = model_now))
   }
-
+  
   return(list(bs = best_single, cut_variable = cut_variable, terminal = terminal_node, why_no_split = nosplit, gama = gama, cts = NULL, model = model_now))
 }
 
 
 #===================================================#
-#             point selection                       #
+#                  point selection                  #
 #===================================================#
+
+
 mean_pzero = function(p) {
   temp = table(p)
   sum(temp * as.numeric(names(temp)))/length(p)
@@ -799,13 +825,13 @@ v_mode <- function(x) {
   t = table(x)
   m = max(t)
   out = names(t)[t == m]
-  if (length(out))
+  if (length(out)) 
     out = sample(out, 1)
   return(out)
 }
 
 
-# how data fitted for each split #
+## How is data fitted for each split
 modelz <- function(method, model_data, var_role, depth) {
   if (dim(model_data)[1] == 0) {
     NULL
@@ -838,7 +864,8 @@ modelz <- function(method, model_data, var_role, depth) {
   }
 }
 
-# Revised point.selection
+## Revised point.selection
+
 
 point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alpha_in = 0.05, depth = 1, min_size = min_size, loglik_increment = 0, model = NULL) {
   naornot = sum(is.na(using_data))
@@ -847,17 +874,17 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
     comcs = complete.cases(using_data)
     using_data = using_data[comcs, ]
   }
-
+  
   temp_var = qvariable_select(method, using_data, var_role, alpha_main, alpha_in, depth, model, min_size)
   cut_variable = temp_var$cut_variable
   terminal_node = temp_var$terminal
-
+  
   LNA = NULL
-
-  if (!is.null(cut_variable))
+  
+  if (!is.null(cut_variable)) 
     cut_one = using_data[[cut_variable]]
-
-  # Model_now=modelz(method,using_data,var_role)
+  
+  ## Model_now = modelz(method, using_data, var_role)
   Model_now = list()
   Model_O = 0
   for (i in 1:length(var_role$DEP)) {
@@ -875,7 +902,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
       }
       Achieve <- categorical.possible.combination <- c()
       for (j in 1:length2) {
-        # temp=t(combn(sort(unique(cut_one)),j))
+        # temp = t(combn(sort(unique(cut_one)), j))
         categorical.possible.combination <- lapply(1:(length(t(combn(unique(cut_one), j)))/j), function(i) t(combn(sort(unique(cut_one)), j))[i, ])
         Achieve <- c(Achieve, categorical.possible.combination)
       }
@@ -883,7 +910,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
     } else {
       sort(unique(cut_one))
     }
-
+    
     model_impurity = lapply(subset_points, function(x) {
       if (is.factor(cut_one)) {
         cut.subset.L = subset(using_data, cut_one %in% x)
@@ -903,7 +930,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
         F
       }
       work_index = work_index_L & work_index_R
-      # print(work_index)
+      ## print(work_index)
       if (work_index) {
         Model_LL = Model_RR = oModel_L = oModel_R = NULL
         for (i in 1:length(var_role$DEP)) {
@@ -941,7 +968,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
         NULL
       }
     })
-
+    
     max_split = unlist(lapply(model_impurity, function(x) if (is.null(x)) {
       NULL
     } else {
@@ -950,15 +977,15 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
     max_split = suppressWarnings(max(max_split))
     temp_max = max_split
     decrease_ll = max_split > loglik_increment
-    # print(max_split) ;print(loglik_increment)
+    ## print(max_split) ;print(loglik_increment)
     max_split = which(unlist(lapply(model_impurity, function(x) if (is.null(x)) {
       F
     } else {
       x[[1]] == max_split
     })))
-
+    
     if (length(max_split) != 0 & decrease_ll) {
-      if (length(max_split) > 1)
+      if (length(max_split) > 1) 
         max_split = max_split[1]
       cut_value = if (is.factor(cut_one)) {
         subset_points[[max_split]]
@@ -969,7 +996,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
       R_var = model_impurity[[max_split]][[3]]
       L_model = model_impurity[[max_split]][[4]]
       R_model = model_impurity[[max_split]][[5]]
-      # print(L_model);print(R_model)
+      ## print(L_model) ;print(R_model)
       if (is.factor(cut_one)) {
         cut.subset.L = subset(using_data, cut_one %in% cut_value)
         cut.subset.R = subset(using_data, cut_one %out% cut_value)
@@ -978,7 +1005,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
         cut.subset.R = subset(using_data, cut_one > cut_value)
       }
       Why_no_split = NULL
-
+      
       if (naornot) {
         cut_NA = is.na(o_data[[cut_variable]])
         if (is.factor(o_data[[cut_variable]])) {
@@ -1017,7 +1044,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
           }
         }
       }
-
+      
     } else {
       cut_value = NULL
       L_var = NULL
@@ -1027,13 +1054,13 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
       cut.subset.R = NULL
       L_model = NULL
       R_model = NULL
-      Why_no_split = if (length(max_split) == 0)
-        "node size too small" else if (temp_max == -Inf)
+      Why_no_split = if (length(max_split) == 0) 
+        "node size too small" else if (temp_max == -Inf) 
           "model can NOT be fitted on child node" else "loglik decrease too little"
     }
-
-
-
+    
+    
+    
     if (naornot) {
       var_role$BEST = best_var
       Model_now = modelz(method, replace_NA(o_data), var_role, depth)
@@ -1047,7 +1074,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
       } else {
         mean(exp(VGAM::predict(Model_now[[i]])))
       }
-
+      
       H_pzero[[i]] = if (class(Model_now[[i]])[1] == "zeroinfl") {
         mean_pzero(VGAM::predict(Model_now[[i]], type = "zero"))
       } else if (class(Model_now[[i]])[1] == "hurdle") {
@@ -1082,13 +1109,13 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
     } else {
       LNA
     }, L_var = L_var, R_var = R_var)
-
+    
   } else {
     if (naornot) {
       Model_now = modelz(method, replace_NA(o_data), var_role, depth)
       using_data = o_data
     }
-
+    
     Y_bar = H_lambda = H_pzero = H_n0 = list()
     for (i in 1:length(var_role$DEP)) {
       Y_bar[[i]] = mean(using_data[, i])
@@ -1097,7 +1124,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
       } else {
         mean(exp(VGAM::predict(Model_now[[i]])))
       }
-
+      
       H_pzero[[i]] = if (class(Model_now[[i]])[1] == "zeroinfl") {
         mean_pzero(VGAM::predict(Model_now[[i]], type = "zero"))
       } else if (class(Model_now[[i]])[1] == "hurdle") {
@@ -1127,7 +1154,7 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
         sum(pnbinom(0, mu = exp(VGAM::predict(Model_now[[i]])), size = Model_now[[i]]$theta))
       }
     }
-
+    
     return_value = list(Cut_variable = cut_variable, Cut_point = NULL, Terminal = terminal_node, Why_no_split = temp_var$why_no_split, Model = Model_now, R_t = Model_O, Node_size = nrow(using_data), Y_bar = Y_bar, H_lambda = H_lambda, H_pzero = H_pzero, H_n0 = H_n0, L_data = NULL, R_data = NULL, L_model = NULL, R_model = NULL, L_NA = if (is.null(LNA)) {
       NULL
     } else {
@@ -1137,14 +1164,15 @@ point.selection <- function(method, using_data, var_role, alpha_main = 0.05, alp
   return(return_value)
 }
 
-#===================================================#
-#                 build the tree                    #
-#===================================================#
 
-# Revised create_tree
+#===================================================#
+#                  build the tree                   #
+#===================================================#
+## Revised create_tree
+
 
 create_tree = function(method, using_data, var_role, alpha_main = 0.05, alpha_in = 0.05, depth = 1, min_size, loglik_increment = 0, model = NULL, parent_node = new.env()) {
-  # message(' size:',min_size)
+  ##  message(' size:', min_size)
   temp = new.env(parent = parent_node)
   temp$Node_info = point.selection(method, using_data, var_role, alpha_main, alpha_in, depth, min_size, loglik_increment, model = model)
   temp$LR = NULL
@@ -1175,8 +1203,10 @@ create_tree = function(method, using_data, var_role, alpha_main = 0.05, alpha_in
 
 
 #===================================================#
-#           level order of the tree                 #
+#              level order of the tree              #
 #===================================================#
+
+
 level_order = function(root) {
   result = list()
   temp = list()
@@ -1187,9 +1217,9 @@ level_order = function(root) {
     temp = temp[-1]
     if (!is.null(root)) {
       result = c(result, root)
-      if (!is.null(root$L))
+      if (!is.null(root$L)) 
         temp = c(temp, root$L)
-      if (!is.null(root$R))
+      if (!is.null(root$R)) 
         temp = c(temp, root$R)
     } else break
   }
@@ -1198,9 +1228,13 @@ level_order = function(root) {
   }
   result
 }
+
+
 #===================================================#
-#             preorder of the tree                  #
+#                preorder of the tree               #
 #===================================================#
+
+
 pre_order = function(root, k = 0) {
   result = c()
   if (!is.null(root)) {
@@ -1235,9 +1269,13 @@ pre_order = function(root, k = 0) {
     }
   }
 }
+
+
 #===================================================#
-#             construct prune table                 #
+#               construct prune table               #
 #===================================================#
+
+
 prune_one = function(atree) {
   temp = level_order(atree)
   P_table = as.data.frame(matrix(0, nrow = length(temp), ncol = 9, dimnames = list(paste("Node", 1:length(temp)), c("t", "N", "S", "R", "G", "g", "L_N", "R_N", "P_N"))))
@@ -1258,7 +1296,7 @@ prune_one = function(atree) {
     0
   })
   P_table$R = sapply(P_table$t, function(i) temp[[i]]$Node_info$R_t)
-
+  
   for (i in rev(P_table$t)) {
     if (P_table$L_N[i] < 1) {
       P_table$N[i] = 1
@@ -1282,7 +1320,7 @@ prune_one = function(atree) {
       alpha = P_table$G[1]
       k = k + 1
     }
-    if (P_table$N[1] == 1)
+    if (P_table$N[1] == 1) 
       break
     t = 1
     while (P_table$G[t] < (P_table$g[t] - epi)) {
@@ -1309,26 +1347,29 @@ prune_one = function(atree) {
   return(list(prune_tree = P_table[, -5], prune_alpha = result2))
 }
 
+
 #===================================================#
 #             K-fold cross validation               #
 #===================================================#
+
+
 K_fold_CV = function(K = 10, main_tree = NULL, method, using_data, var_role, alpha_main = 0.05, alpha_in = 0.05, SE = 0.5, min_size, loglik_increment = 0) {
   # message(' K size:',min_size)
-  if (is.null(main_tree))
+  if (is.null(main_tree)) 
     main_tree = create_tree(method, using_data, var_role, alpha_main, alpha_in, depth = 1, min_size, loglik_increment, parent_node = new.env())
   result1 = prune_one(main_tree)$prune_alpha
   maxsize = max(result1$N_TNode)
-  # message('max tree size: ',maxsize)
-
+  ## message('max tree size: ', maxsize)
+  
   G_alpha = result1$g_alpha
-
+  
   folds = caret::createFolds(using_data$Y, K)
-  result = c()  #;result2=list()
+  result = c()  ##;result2 = list()
   for (i in 1:K) {
     Indexes = folds[[i]]
     train_S = using_data[Indexes, ]
     learn_S = using_data[-Indexes, ]
-
+    
     nobs = dim(learn_S)[1]
     parm_num = 2 + length(var_role$FITL) + length(var_role$FITZ)
     if (min_size <= 0) {
@@ -1338,13 +1379,13 @@ K_fold_CV = function(K = 10, main_tree = NULL, method, using_data, var_role, alp
     } else if (min_size >= 1) {
       learn_size = floor(min_size * ((K - 1)/K))
     }
-
+    
     learn_tree = create_tree(method, learn_S, var_role, alpha_main, alpha_in, depth = 1, learn_size, loglik_increment, parent_node = new.env())
-    # print.ezct(learn_tree) result2=c(result2,learn_tree)
+    ## print.ezct(learn_tree) result2 = c(result2, learn_tree)
     learn_prune = prune_one(learn_tree)
     learn_level = level_order(learn_tree)
     train_fit(learn_tree, train_S, method, var_role)
-
+    
     temp = learn_prune$prune_alpha
     Rts = tree_Rt(learn_level, learn_prune$prune_tree)
     result = cbind(result, Rts[sapply(G_alpha, function(x) rev(which(temp$alpha <= x))[1])])
@@ -1359,9 +1400,12 @@ K_fold_CV = function(K = 10, main_tree = NULL, method, using_data, var_role, alp
   list(result1, result, N_Tnode, maxsize)
 }
 
+
 #===================================================#
-#            pruning related functions              #
+#             pruning related functions             #
 #===================================================#
+
+
 train_fit = function(using_node, training_data, method, var_role) {
   if (!is.null(using_node)) {
     N_D = node_discriminant(using_node)
@@ -1378,8 +1422,8 @@ train_fit = function(using_node, training_data, method, var_role) {
       using_node$train_data = training_data
     }
     fitts = switch(var_role$cdist, negbin = modelts2, poisson = modelts)
-
-
+    
+    
     using_node$train_model = fitts(method, using_node$train_data, using_node, var_role)
     temp = using_node$train_model$loglik
     if (is.null(temp)) {
@@ -1387,12 +1431,10 @@ train_fit = function(using_node, training_data, method, var_role) {
     } else {
       using_node$train_Rt = temp * (-1)
     }
-    ## message("TRAIN")
+    
     if (!using_node$Node_info$Terminal) {
       train_fit(using_node$L, using_node$train_data, method, var_role)
-      ## message("LLLTRAIN")
       train_fit(using_node$R, using_node$train_data, method, var_role)
-      ## message("RRRTRAIN")
     }
   }
 }
@@ -1401,14 +1443,14 @@ node_discriminant = function(using_node) {
   temp = parent.env(using_node)
   if (length(temp)) {
     LR = ""
-    if (!using_node$LR)
+    if (!using_node$LR) 
       LR = "!"
     temp2 = if (is.factor(temp$Node_info$Cut_point)) {
       paste0("training_data$", temp$Node_info$Cut_variable, "%in%", "as.character( \"", temp$Node_info$Cut_point, "\")")
     } else {
       paste("training_data$", temp$Node_info$Cut_variable, "<=", temp$Node_info$Cut_point)
     }
-    if (length(temp2) > 1)
+    if (length(temp2) > 1) 
       temp2 = paste(temp2, collapse = "|")
     temp2 = paste(LR, "(", temp2, ")")
     return(temp2)
@@ -1452,7 +1494,7 @@ tree_Rt = function(tree_level, prune_tree) {
 }
 
 path_to_leaf = function(hash, prune_tree) {
-  if (prune_tree$L_N[hash])
+  if (prune_tree$L_N[hash]) 
     return(list(prune_tree$t[hash], path_to_leaf(prune_tree$L_N[hash], prune_tree), path_to_leaf(prune_tree$R_N[hash], prune_tree))) else return(prune_tree$t[hash])
 }
 
@@ -1475,10 +1517,12 @@ final_prune = function(tree_level, prune_tree, k) {
 }
 
 #===================================================#
-#        how data fitted when pruning               #
+#           how data fitted when pruning            #
 #===================================================#
+
+
 modelts <- function(method, model_data, using_node, var_role) {
-  if (sum(is.na(model_data)))
+  if (sum(is.na(model_data))) 
     model_data = replace_NA(model_data)
   dep_var = attr(using_node$Node_info$Model$terms$count, "term.labels")
   var_role$FITL = dep_var
@@ -1522,13 +1566,13 @@ modelts <- function(method, model_data, using_node, var_role) {
         })
       })
     })
-
+    
   }
 }
 
 
 modelts2 <- function(method, model_data, using_node, var_role) {
-  if (sum(is.na(model_data)))
+  if (sum(is.na(model_data))) 
     model_data = replace_NA(model_data)
   dep_var = attr(using_node$Node_info$Model$terms$count, "term.labels")
   var_role$FITL = dep_var
@@ -1572,37 +1616,38 @@ modelts2 <- function(method, model_data, using_node, var_role) {
         })
       })
     })
-
+    
   }
 }
 
 
 #===================================================#
-#                 use the method                    #
+#                   use the method                  #
 #===================================================#
+
 
 tree_control = function(method = c("multiple", "constant", "simple", "back"), prune_or_not = T, SE = 0.5, fold = 10, trimzero = T, alpha_main = 0.05, alpha_in = 0.05, depth = 1, part_score = c("all", "count", "zero"), cdist = c("poisson", "negbin"), min_size = -1, loglik_increment = 0, zero_type = c("inflated", "altered", "none"), CV_seed = 39, back_alpha = 0.1, trace = F) {
   list(prune_or_not = prune_or_not, SE = SE, fold = fold, alpha_main = alpha_main, alpha_in = alpha_in, trimzero = trimzero, depth = depth, part_score = match.arg(part_score), cdist = match.arg(cdist), min_size = min_size, loglik_increment = loglik_increment, method = match.arg(method), zero_type = match.arg(zero_type), CV_seed = CV_seed, back_alpha = back_alpha, trace = trace)
 }
 
-# Revised coretree
+## revised coretree
 
 coretree = function(formula, data, na.action = na.pass, offset, control = tree_control(...), ...) {
   if (control$CV_seed == 39) {
     set.seed(39)
   }
   cl = match.call()
-
-  if (missing(data))
+  
+  if (missing(data)) 
     data = environment(formula)
   using_data = match.call(expand.dots = FALSE)
   m = match(c("formula", "data", "na.action", "offset"), names(using_data), 0)
   using_data = using_data[c(1, m)]
   using_data$drop.unused.levels = TRUE
   using_data$na.action <- na.action
-
+  
   formula <- Formula::as.Formula(formula)
-
+  
   if (length(formula)[2L] < 2L) {
     parts = F
   } else {
@@ -1613,7 +1658,7 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
     parts = T
   }
   using_data$formula <- formula
-
+  
   using_data[[1]] <- as.name("model.frame")
   using_data <- eval(using_data, parent.frame())
   logics = sapply(using_data, is.logical)
@@ -1621,14 +1666,14 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
     logicnames = names(using_data)[logics]
     using_data[logicnames] = lapply(using_data[logicnames], as.factor)
   }
-  if (control$trace)
+  if (control$trace) 
     return(using_data[1:4, ])
   if (!missing(offset)) {
     N = NCOL(using_data)
     OFF = model.offset(using_data)
     using_data = using_data[, -N]
   }
-
+  
   var_role = if (identical(suppressWarnings(attr(terms(formula, data = using_data, rhs = 3L), "term.labels")), character(0))) {
     list(FITL = if (!parts) {
       attr(terms(formula, data = using_data, rhs = 1L), "term.labels")
@@ -1654,7 +1699,7 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
       OFF
     }, ZERO = control$zero_type, part_score = control$part_score, trimzero = control$trimzero, cdist = control$cdist, back_alpha = control$back_alpha)
   }
-
+  
   for (i in 1:length(var_role$DEP)) {
     names(using_data)[i] = "Y"
     if (sum(is.na(using_data[i]))) {
@@ -1662,40 +1707,38 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
       message("Omit the cases that have missing values on response")
     }
   }
-
-  if (control$trace)
+  
+  if (control$trace) 
     print(var_role[1:4])
-  # if(control$method=='multiple' | control$method=='simple')
-  #  {if(do.call(max,lapply(using_data[var_role$FITL],nlevels))>2)
-  #   {stop('Categorical regressors are allowed with only 2-level')}}
+  # if(control$method=='multiple' | control$method=='simple') {if(do.call(max,lapply(using_data[var_role$FITL],nlevels))>2) {stop('Categorical regressors are allowed with only 2-level')}}
   nobs = dim(using_data)[1]
-  if (nobs < 1)
+  if (nobs < 1) 
     stop("empty data")
-
+  
   if (control$part_score == "count" & !is.null(var_role$FITZ)) {
     var_role$FITZ = NULL
     message("Using score of count part does NOT allow covariates on zero")
   }
-
+  
   if (control$part_score == "zero" & !is.null(var_role$FITL)) {
     var_role$FITL = NULL
     message("Using score of zero part does NOT allow covariates on count")
   }
-
+  
   for (i in 1:length(var_role$DEP)) {
-    if (!isTRUE(all.equal(as.vector(unlist((using_data[i]))), as.integer(unlist(round(using_data[i] + 0.001))))))
+    if (!isTRUE(all.equal(as.vector(unlist((using_data[i]))), as.integer(unlist(round(using_data[i] + 0.001)))))) 
       stop("invalid dependent variable, non-integer values")
   }
-
+  
   for (i in 1:length(var_role$DEP)) {
     using_data[i] <- as.integer(unlist(round(using_data[i] + 0.001)))
   }
-
+  
   for (i in 1:length(var_role$DEP)) {
-    if (any(using_data[i] < 0))
+    if (any(using_data[i] < 0)) 
       stop("invalid dependent variable, negative counts")
   }
-
+  
   node_size = control$min_size
   parm_num = 2 + length(var_role$FITL) + length(var_role$FITZ)
   if (control$min_size <= 0) {
@@ -1708,9 +1751,9 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
   if (control$min_size >= nobs) {
     stop("The sample size is too small to fit the model.")
   }
-
+  
   message("The task is in execution...")
-
+  
   temp = create_tree(control$method, using_data, var_role, control$alpha_main, control$alpha_in, control$depth, control$min_size, control$loglik_increment, parent_node = new.env())
   message("temp done")
   tree_level = level_order(temp)
@@ -1740,9 +1783,9 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
 }
 
 #===================================================#
-#                 helper functions                  #
+#                  helper functions                 #
 #===================================================#
-# delete  variable with only 1 level #
+## delete variable with only 1 level
 keep_var = function(using_data, role) {
   keep = using_data[role] %>% lapply(unique) %>% lapply(length) > 1
   keep = names(keep[keep == T])
@@ -1753,10 +1796,10 @@ keep_var = function(using_data, role) {
   }
 }
 
-# opposition of %in% #
+## opposition of %in% #
 "%out%" <- function(x, y) !x %in% y
 
-# assign variables to each group by role vector #
+## assign variables to each group by role vector
 var_roles = function(gvar, gtype) {
   CAT = gvar[gtype %in% c("c", "k", "a", "f", "K", "A", "F")]
   CUT = gvar[gtype %in% c("s", "c", "L", "Z", "B", "K", "A", "F")]
@@ -1770,7 +1813,7 @@ var_roles = function(gvar, gtype) {
 }
 
 
-# replace NA
+## replace NA
 
 replace_NA = function(NAdata) {
   temp = rownames(NAdata)
@@ -1818,18 +1861,21 @@ train_predict = function(using_node, training_data, offsett = NULL) {
     }
   }
 }
+
+
 #===================================================#
 #       plot the tree by package partykit           #
 #===================================================#
 
+
 tree_dsc2 = function(tree_level, using_data) {
   tree_kids = function(i) {
-    if (!tree_level[[i]]$NP)
+    if (!tree_level[[i]]$NP) 
       return(NULL) else return(c(tree_level[[i]]$L$hash, tree_level[[i]]$R$hash))
   }
-
+  
   tree_split = function(i) {
-    if (!tree_level[[i]]$NP)
+    if (!tree_level[[i]]$NP) 
       return(NULL)
     if (is.factor(tree_level[[i]]$Node_info$Cut_point)) {
       temp = tree_level[[i]]$Node_info$Cut_point
@@ -1843,13 +1889,13 @@ tree_dsc2 = function(tree_level, using_data) {
     }
     return(split)
   }
-
+  
   tree_node = function(i) {
-    if (is.null(tree_kids(i)))
+    if (is.null(tree_kids(i))) 
       return(partynode(as.integer(i), info = tree_info[[i]]))
     partynode(as.integer(i), split = tree_split(i), kids = lapply(tree_kids(i), tree_node))
   }
-
+  
   if (tree_level[[1]]$method == "simple") {
     tree_info = lapply(tree_level, function(root) {
       best = if (!is.null(root$Node_info$Model[[1]])) {
@@ -1891,7 +1937,7 @@ tree_dsc2 = function(tree_level, using_data) {
       if (class(root$Node_info$Model[[1]])[1] == "negbin") root$Node_info$Model[[1]]$theta else F
     }))
   }
-
+  
   party_tree = tree_node(1)
   preid = as.character(nodeids(party_tree))
   party_tree = party(party_tree, using_data[0, ])
@@ -1977,18 +2023,21 @@ partykit_draw_big = function(p_t) {
 }
 
 
+
 #===================================================#
 #                core    functions                  #
 #===================================================#
+
+
 print.core = function(object) {
   cat("\n", "Text output:", "\n\n")
   pre_order(object)
 }
 
 plot.core = function(object, big = F) {
-
-
-
+  
+  
+  
   temp = level_order(object)
   if (object$method == "simple") {
     partykit_draw_best(tree_dsc2(temp, object$using_data), big)
@@ -2042,13 +2091,13 @@ predict.core = function(object, newdata) {
       rownames(temp2) = rownames(x$Node_info$Model$model)
       temp2
     }))
-
+    
   } else {
     train_VGAM::predict(object, newdata, object$offsett)
     temp = do.call(rbind, lapply(level_order(object), function(x) {
       temp2 = NULL
       if (!x$NP) {
-        if (!is.null(x$prf))
+        if (!is.null(x$prf)) 
           temp2 = data.frame(nodeID = x$hash, predicted = x$prf)
       }
       x$prf = NULL
@@ -2064,7 +2113,7 @@ change_size = function(object, tree_size) {
 
 qqrplot_c = function(object, node = NULL, ...) {
   if (is.null(node)) {
-    temp = lapply(level_order(object), function(x) if (!x$NP)
+    temp = lapply(level_order(object), function(x) if (!x$NP) 
       x)
     nodeID = paste("node", which(sapply(temp, function(x) !is.null(x))))
     temp = temp[sapply(temp, function(x) !is.null(x))]
@@ -2085,7 +2134,7 @@ qqrplot_c = function(object, node = NULL, ...) {
 
 rootogram.core = function(object, node = NULL, style = "hanging", num = NULL) {
   if (is.null(node)) {
-    aa = lapply(level_order(object), function(x) if (!x$NP)
+    aa = lapply(level_order(object), function(x) if (!x$NP) 
       x)
     aa = aa[sapply(aa, function(x) !is.null(x))]
     aaa = length(aa)
@@ -2094,7 +2143,7 @@ rootogram.core = function(object, node = NULL, style = "hanging", num = NULL) {
     aa = lapply(aa, function(x) {
       temp = x$Node_info$Model
       rootogram(temp, max = max(temp$y), main = paste0("node ", x$hash), xlab = object$var_role$DEP, style = style, col = "black", fill = "gray70")
-      # ,cex.lab=1.2)
+      ## ,cex.lab = 1.2)
     })
   } else {
     aa = lapply(node, function(x) {
@@ -2102,7 +2151,7 @@ rootogram.core = function(object, node = NULL, style = "hanging", num = NULL) {
       temp2 = temp$Node_info$Model
       rootogram(temp2, max = max(temp2$y), main = paste0("node ", temp$hash), xlab = object$var_role$DEP, style = style, col = "black", fill = "gray70", cex.lab = 1.2)
     })
-
+    
   }
 }
 
@@ -2113,8 +2162,8 @@ qqrplot_from_countreg <- function(object, type = c("random", "quantile"), nsim =
   } else {
     sapply(1:nsim, function(x) statmod::qresiduals(object))
   }
-
-  if (is.null(dim(qres)))
+  
+  if (is.null(dim(qres))) 
     qres <- matrix(qres, ncol = 1L)
   inf_res = matrix(F, ncol = ncol(qres), nrow = nrow(qres))
   for (i in 1:ncol(qres)) {
@@ -2127,25 +2176,25 @@ qqrplot_from_countreg <- function(object, type = c("random", "quantile"), nsim =
       qres[inf_res, i] = ifelse(sign(qres[inf_res, i]) + 1, qres_range[2] + 0.5, qres_range[1] - 0.5)
     }
   }
-  if (is.null(dim(qres)))
+  if (is.null(dim(qres))) 
     qres <- matrix(qres, ncol = 1L)
   ## corresponding normal quantiles
   q2q <- function(y) qnorm(ppoints(length(y)))[order(order(y))]
   qnor <- apply(qres, 2L, q2q)
-
+  
   ## default plotting ranges
-  if (is.null(xlim))
+  if (is.null(xlim)) 
     xlim <- range(qnor)
-  if (is.null(ylim))
+  if (is.null(ylim)) 
     ylim <- range(qres)
   xylim = range(c(xlim, ylim))
   xlim = ylim = xylim
   ## set up coordinates
   plot(0, 0, type = "n", xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab, main = main)
-
+  
   ## polygon for range
   if (!identical(range, FALSE)) {
-    if (isTRUE(range))
+    if (isTRUE(range)) 
       range <- c(0.01, 0.99)
     rg <- qresiduals(object, type = "quantile", prob = range)
     y1 <- sort(rg[, 1])
@@ -2157,9 +2206,9 @@ qqrplot_from_countreg <- function(object, type = c("random", "quantile"), nsim =
     polygon(x, y, col = fill, border = fill)
     box()
   }
-
+  
   ## add Q-Q plot(s)
-
+  
   for (j in 1:ncol(qres)) {
     for (i in which(!inf_res[, j])) points(qnor[i, j], qres[i, j], col = col, ...)
     for (i in which(inf_res[, j])) {
@@ -2171,17 +2220,17 @@ qqrplot_from_countreg <- function(object, type = c("random", "quantile"), nsim =
   }
   ## reference diagol
   if (!identical(diag, FALSE)) {
-    if (isTRUE(diag))
+    if (isTRUE(diag)) 
       diag <- "black"
     abline(0, 1, col = diag, lty = 2)
   }
-
+  
   ## return coordinates invisibly
   invisible(list(normal = qnor, residuals = qres))
 }
 
 table_c = function(t_tree, node = NULL) {
-  aa = lapply(level_order(t_tree), function(x) if (!x$NP)
+  aa = lapply(level_order(t_tree), function(x) if (!x$NP) 
     x)
   nodeID = paste("node", which(sapply(aa, function(x) !is.null(x))))
   aa = aa[sapply(aa, function(x) !is.null(x))]
@@ -2196,7 +2245,7 @@ table_c = function(t_tree, node = NULL) {
       for (i in 1:len) Rva[, i] <- dpois(i - 1, lambda = lam)
       colSums(Rva)
     }
-
+    
   })
   OO = lapply(aa, function(x) {
     temp = x$Node_info$Model
@@ -2208,7 +2257,7 @@ table_c = function(t_tree, node = NULL) {
     x
   })
   names(temp) = nodeID
-
+  
   if (is.null(node)) {
     temp
   } else {
@@ -2240,7 +2289,6 @@ plot_models = function(models, FUN, windows = F) {
 
 find_par = function(x) {
   temp = which.min(abs(((1:10)^2 - x)))
-  if (x <= temp^2)
+  if (x <= temp^2) 
     c(temp, temp) else c(temp, temp + 1)
 }
-
