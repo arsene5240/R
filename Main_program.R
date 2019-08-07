@@ -629,7 +629,11 @@ qvariable_select = function(method, using_data, var_role, alpha_main = 0.05, alp
       return(list(bs = NULL, cut_variable = NULL, terminal = T, why_no_split = paste("Observations is NOT enough (minsize = ", min_ssize, ")"), gama = gama, cts = NULL, model = model_now))
     }
   }
-  t_index = !logical(length(using_data$Y))
+  t_index = if (length(var_role$DEP) == 1) {
+    !logical(length(using_data$Y))
+  } else {
+    !logical(length(as.numeric(unlist(using_data[var_role$DEP[1]]))))
+  }
   ## print(all(t_index == T))
   table_single = list()
   for (j in 1:length(var_role$DEP)) {
@@ -1630,12 +1634,16 @@ tree_control = function(method = c("multiple", "constant", "simple", "back"), pr
   list(prune_or_not = prune_or_not, SE = SE, fold = fold, alpha_main = alpha_main, alpha_in = alpha_in, trimzero = trimzero, depth = depth, part_score = match.arg(part_score), cdist = match.arg(cdist), min_size = min_size, loglik_increment = loglik_increment, method = match.arg(method), zero_type = match.arg(zero_type), CV_seed = CV_seed, back_alpha = back_alpha, trace = trace)
 }
 
+
 ## revised coretree
 
+
 coretree = function(formula, data, na.action = na.pass, offset, control = tree_control(...), ...) {
+  
   if (control$CV_seed == 39) {
     set.seed(39)
   }
+  
   cl = match.call()
   
   if (missing(data)) 
@@ -1651,6 +1659,7 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
   if (length(formula)[2L] < 2L) {
     parts = F
   } else {
+    
     if (length(formula)[2L] > 3L) {
       formula <- Formula::Formula(formula(formula, rhs = 1L:3L))
       warning("Formula must not have more than three RHS parts")
@@ -1658,16 +1667,18 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
     parts = T
   }
   using_data$formula <- formula
-  
   using_data[[1]] <- as.name("model.frame")
   using_data <- eval(using_data, parent.frame())
   logics = sapply(using_data, is.logical)
+  
   if (sum(logics)) {
     logicnames = names(using_data)[logics]
     using_data[logicnames] = lapply(using_data[logicnames], as.factor)
   }
+  
   if (control$trace) 
     return(using_data[1:4, ])
+  
   if (!missing(offset)) {
     N = NCOL(using_data)
     OFF = model.offset(using_data)
@@ -1675,11 +1686,8 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
   }
   
   var_role = if (identical(suppressWarnings(attr(terms(formula, data = using_data, rhs = 3L), "term.labels")), character(0))) {
-    list(FITL = if (!parts) {
-      attr(terms(formula, data = using_data, rhs = 1L), "term.labels")
-    } else {
-      attr(terms(formula, data = using_data, rhs = 1L), "term.labels")
-    }, CUT = if (!parts) {
+    list(FITL = attr(terms(formula, data = using_data, rhs = 1L), "term.labels"),
+         CUT = if (!parts) {
       attr(terms(formula, data = using_data, rhs = 1L), "term.labels")
     } else {
       attr(terms(formula, data = using_data, rhs = 2L), "term.labels")
@@ -1693,7 +1701,11 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
       OFF
     }, ZERO = control$zero_type, part_score = control$part_score, trimzero = control$trimzero, cdist = control$cdist, back_alpha = control$back_alpha)
   } else {
-    list(CUT = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), DEP = suppressWarnings(attr(terms(formula, data = using_data, rhs = 3L), "term.labels")), FITL = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), FITZ = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), OFF = if (missing(offset)) {
+    list(CUT = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), 
+         DEP = suppressWarnings(attr(terms(formula, data = using_data, rhs = 3L), "term.labels")), 
+         FITL = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), 
+         FITZ = suppressWarnings(attr(terms(formula, data = using_data, lhs = 3L), "term.labels")), 
+         OFF = if (missing(offset)) {
       NULL
     } else {
       OFF
@@ -1712,6 +1724,7 @@ coretree = function(formula, data, na.action = na.pass, offset, control = tree_c
     print(var_role[1:4])
   # if(control$method=='multiple' | control$method=='simple') {if(do.call(max,lapply(using_data[var_role$FITL],nlevels))>2) {stop('Categorical regressors are allowed with only 2-level')}}
   nobs = dim(using_data)[1]
+  
   if (nobs < 1) 
     stop("empty data")
   
@@ -2093,7 +2106,7 @@ predict.core = function(object, newdata) {
     }))
     
   } else {
-    train_VGAM::predict(object, newdata, object$offsett)
+    train_predict(object, newdata, object$offsett)
     temp = do.call(rbind, lapply(level_order(object), function(x) {
       temp2 = NULL
       if (!x$NP) {
